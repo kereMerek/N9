@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Aşk Macerası - Retro Piksel</title>
+    <!-- Google Fonts (Retro Piksel Font) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Genel Ayarlar & Mobil Optimizasyonu */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: 100%;
+            overflow: hidden;
+            background-color: #020617; /* Saf Gece Mavisi/Siyah */
+            font-family: 'Press Start 2P', cursive;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior: none;
+        }
+
+        body {
+            height: 100vh;
+            height: 100dvh;
+        }
+
+        /* Piksel Art Netleştirici (Oyunun can damarı) */
+        .pixel-art {
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;
+        }
+
+        /* Oyun Konteyneri ve Gece Mavisi/Cyan Gradient */
+        #game-container {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, #020617 0%, #0f172a 40%, #1e3a8a 75%, #0284c7 100%);
+            overflow: hidden;
+        }
+
+        /* Piksel Yıldızlar */
+        .stars-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, #fff 100%, transparent 100%),
+                radial-gradient(2px 2px at 60px 80px, #bae6fd 100%, transparent 100%),
+                radial-gradient(2px 2px at 120px 40px, #fff 100%, transparent 100%),
+                radial-gradient(2px 2px at 180px 110px, #38bdf8 100%, transparent 100%);
+            background-size: 200px 200px;
+            animation: scrollStars 15s linear infinite;
+        }
+
+        /* Piksel Bloklu Zemin (Hızlandırıldı) */
+        .ground-layer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 20%;
+            background: repeating-linear-gradient(
+                90deg,
+                #0f172a,
+                #0f172a 24px,
+                #020617 24px,
+                #020617 48px
+            );
+            border-top: 4px solid #22d3ee; 
+            box-shadow: inset 0 6px 0 rgba(0,0,0,0.3);
+            animation: scrollGround 1s linear infinite; /* Koşma hissiyatı için hızlandırıldı */
+            z-index: 10;
+        }
+
+        #game-container:not(.started) .stars-layer,
+        #game-container:not(.started) .ground-layer {
+            animation-play-state: paused;
+        }
+
+        @keyframes scrollStars {
+            from { background-position: 0 0; }
+            to { background-position: -200px 0; }
+        }
+
+        @keyframes scrollGround {
+            from { background-position: 0 0; }
+            to { background-position: -48px 0; }
+        }
+
+        @keyframes moveLeft {
+            from { transform: translateX(0); }
+            to { transform: translateX(-120vw); }
+        }
+
+        /* Karakter (Eevee) */
+        #player {
+            position: absolute;
+            left: 15%;
+            bottom: 20%;
+            width: 64px;
+            height: 64px;
+            z-index: 20;
+            transform: translateY(0);
+            will-change: transform;
+        }
+
+        #player-sprite {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transform: scaleX(-1);
+            transition: transform 0.1s ease-out;
+            transform-origin: bottom center;
+        }
+
+        #player.running::after {
+            content: "";
+            position: absolute;
+            left: -8px;
+            bottom: 4px;
+            width: 4px;
+            height: 4px;
+            background: #ffffff;
+            box-shadow: -6px 3px 0 #7dd3fc, -10px 0 0 #e0f2fe;
+            animation: runDust 0.34s steps(2, end) infinite;
+        }
+
+        #player-sprite.running {
+            animation: runCycle 0.28s steps(2, end) infinite;
+        }
+
+        #player-sprite.running.invincible {
+            animation: runCycle 0.28s steps(2, end) infinite, flicker 0.15s infinite;
+        }
+
+        @keyframes runCycle {
+            0%, 100% { transform: scaleX(-1) translateY(0) rotate(0); }
+            50% { transform: scaleX(-1) translateY(-4px) rotate(-3deg) scale(1.03, 0.97); }
+        }
+
+        @keyframes runDust {
+            from { opacity: 0.9; transform: translateX(0) scale(1); }
+            to { opacity: 0; transform: translateX(-8px) scale(0.5); }
+        }
+
+        /* Hasar Alma (Ölümsüzlük) Animasyonu */
+        .invincible {
+            animation: flicker 0.15s infinite;
+        }
+        @keyframes flicker {
+            0%, 100% { opacity: 1; filter: brightness(1); }
+            50% { opacity: 0.3; filter: brightness(2) drop-shadow(0 0 5px #ef4444); }
+        }
+
+        /* Squash & Stretch (Esneme & Gerilme) */
+        .jump-up { transform: scaleX(-1) scale(0.85, 1.2) rotate(5deg) !important; }
+        .jump-down { transform: scaleX(-1) scale(1.1, 0.9) rotate(-3deg) !important; }
+
+        /* Dinamik Objeler */
+        .entity {
+            position: absolute;
+            left: 100%;
+            z-index: 15;
+            will-change: transform;
+            animation: moveLeft 1.8s linear forwards; /* Objelerin geliş hızı da zemine uyarlandı */
+        }
+
+        .entity svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+
+        .obstacle {
+            bottom: 20%;
+            width: 42px;
+            height: 50px;
+            margin-bottom: 0;
+            filter: drop-shadow(0 0 5px rgba(251, 146, 60, 0.75));
+        }
+
+        .heart {
+            bottom: calc(20% + 120px); /* Havada zıplama noktası */
+            width: 36px;
+            height: 36px;
+        }
+
+        /* 8-Bit Arayüz (Skor ve Can) */
+        #ui-layer {
+            position: absolute;
+            top: max(12px, env(safe-area-inset-top));
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+            box-sizing: border-box;
+            z-index: 30;
+            pointer-events: none;
+        }
+
+        .score-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #0f172a;
+            border: 3px solid #38bdf8;
+            padding: 10px 16px;
+            color: #e0f2fe;
+            font-size: 14px;
+            text-shadow: 2px 2px 0px #020617;
+            box-shadow: 4px 4px 0px #020617;
+        }
+
+        .ui-heart { width: 20px; height: 20px; }
+
+        /* HP Bar Sistemi */
+        #health-bar {
+            display: flex;
+            gap: 6px;
+        }
+        .hp-box {
+            width: 18px;
+            height: 18px;
+            background-color: #38bdf8;
+            border: 3px solid #020617;
+            box-shadow: 2px 2px 0px #0f172a;
+            transition: background-color 0.2s;
+        }
+        .hp-box.lost {
+            background-color: #1e293b;
+            border-color: #0f172a;
+            box-shadow: none;
+        }
+
+        /* Çarpma Efekti (Kırmızı Parlama) */
+        #flash-overlay {
+            position: absolute;
+            inset: 0;
+            background-color: transparent;
+            z-index: 40;
+            pointer-events: none;
+        }
+        .flash-red { animation: flashAnim 0.3s ease-out; }
+        @keyframes flashAnim {
+            0% { background-color: rgba(220, 38, 38, 0.6); }
+            100% { background-color: transparent; }
+        }
+
+        /* Pixel Tutorial */
+        #tutorial {
+            position: absolute;
+            top: 45%;
+            width: 100%;
+            text-align: center;
+            color: #e0f2fe;
+            font-size: 10px;
+            line-height: 2.5;
+            z-index: 20;
+            animation: blinkText 2s infinite;
+            text-shadow: 2px 2px 0 #020617;
+        }
+        @keyframes blinkText {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+
+        /* Tam Ekran Arayüzleri (Kazanma ve Kaybetme) */
+        .overlay-screen {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(2, 6, 23, 0.88);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 1.5s ease-in-out;
+            z-index: 50;
+            padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+            text-align: center;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+        .overlay-screen.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .ending-heart-field {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .overlay-screen > :not(.ending-heart-field) {
+            position: relative;
+            z-index: 1;
+        }
+
+        .ending-heart {
+            position: absolute;
+            top: -64px;
+            width: var(--heart-size);
+            height: var(--heart-size);
+            left: var(--heart-left);
+            opacity: 0;
+            filter: drop-shadow(0 0 8px #38bdf8);
+            animation: driftDown var(--fall-duration) linear var(--fall-delay) infinite;
+            animation-play-state: paused;
+        }
+
+        .ending-heart svg {
+            filter: none !important;
+        }
+
+        .overlay-screen.active .ending-heart {
+            animation-play-state: running;
+            will-change: transform, opacity;
+        }
+
+        #lose-screen .ending-heart {
+            filter: blur(1.25px) drop-shadow(0 0 9px #38bdf8);
+        }
+
+        @keyframes driftDown {
+            0% {
+                opacity: 0;
+                transform: translate3d(0, -10vh, 0) rotate(-12deg);
+            }
+            12%, 82% { opacity: 0.72; }
+            100% {
+                opacity: 0;
+                transform: translate3d(var(--heart-drift), 115vh, 0) rotate(12deg);
+            }
+        }
+        
+        .romantic-text {
+            font-size: 11px;
+            line-height: 2.5;
+            max-width: 90%;
+            color: #bae6fd;
+            text-shadow: 2px 2px 0px #020617;
+            margin-bottom: 48px;
+        }
+
+        .ending-title {
+            margin: 0 0 32px;
+            color: #ffffff;
+            font-size: clamp(16px, 2.5vw, 20px);
+            line-height: 1.8;
+            text-shadow: 3px 3px 0 #020617;
+        }
+
+        /* Retro Buton */
+        .retro-btn {
+            background-color: #0284c7;
+            color: #ffffff;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 12px;
+            border: 3px solid #e0f2fe;
+            padding: 16px 24px;
+            box-shadow: 6px 6px 0px #0f172a;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: transform 0.1s, box-shadow 0.1s;
+            width: min(100%, 420px);
+            line-height: 1.8;
+            overflow-wrap: anywhere;
+        }
+        .retro-btn:active {
+            transform: translate(4px, 4px);
+            box-shadow: 2px 2px 0px #0f172a;
+        }
+
+        .win-heart-container {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 24px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .stars-layer,
+            .ground-layer,
+            #player.running::after,
+            #player-sprite.running,
+            .ending-heart,
+            .win-heart-container {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .obstacle {
+                width: 40px;
+                height: 48px;
+            }
+
+            #ui-layer {
+                gap: 8px;
+            }
+
+            .score-box {
+                gap: 8px;
+                padding: 8px 10px;
+                font-size: clamp(9px, 3vw, 12px);
+            }
+
+            #health-bar {
+                gap: 3px;
+            }
+
+            .hp-box {
+                width: 14px;
+                height: 14px;
+            }
+
+            #tutorial {
+                box-sizing: border-box;
+                padding: 0 12px;
+                font-size: clamp(8px, 2.7vw, 10px);
+                overflow-wrap: anywhere;
+            }
+
+            .ending-heart-field .ending-heart:nth-child(even) {
+                display: none;
+            }
+
+            .retro-btn {
+                padding: 14px 12px;
+                font-size: clamp(9px, 3vw, 12px);
+            }
+        }
+
+        @media (max-height: 500px) {
+            .overlay-screen {
+                justify-content: flex-start;
+            }
+
+            .win-heart-container {
+                width: 56px;
+                height: 56px;
+                margin-bottom: 12px;
+            }
+
+            .ending-title {
+                margin-bottom: 16px;
+            }
+
+            .romantic-text {
+                margin-bottom: 20px;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Parallax Katmanları -->
+        <div class="stars-layer"></div>
+        <div class="ground-layer"></div>
+
+        <!-- Arayüz (Skor & HP) -->
+        <div id="ui-layer">
+            <div class="score-box">
+                <div class="ui-heart" id="score-icon"></div>
+                <span id="score">0</span> / 4
+            </div>
+            
+            <div id="health-bar">
+                <div class="hp-box" id="hp-1"></div>
+                <div class="hp-box" id="hp-2"></div>
+                <div class="hp-box" id="hp-3"></div>
+                <div class="hp-box" id="hp-4"></div>
+            </div>
+        </div>
+
+        <!-- Eğitim Yazısı -->
+        <div id="tutorial">
+            DOKUNARAK ZIPLIYOSUNN AŞKIMMMMM<br>
+            <span style="color: #38bdf8;">KRİSTALLERE DİKKAT ETTTTTTTTT!</span>
+        </div>
+
+        <!-- Parlama Ekranı -->
+        <div id="flash-overlay"></div>
+
+        <!-- Karakter (Koşan Eevee Gen5 Animasyonu) -->
+        <div id="player">
+            <img id="player-sprite" class="pixel-art" src="https://play.pokemonshowdown.com/sprites/gen5ani/eevee.gif" alt="Eevee" decoding="async" fetchpriority="high">
+        </div>
+    </div>
+
+    <!-- Kazanma Ekranı -->
+    <div id="win-screen" class="overlay-screen">
+        <div class="ending-heart-field" aria-hidden="true"></div>
+        <div class="win-heart-container" id="win-heart-icon"></div>
+        <h1 class="ending-title">OYUN BİTTİ</h1>
+        <p class="romantic-text">
+            Afeyimmm benimmm aşkımaaaaa mmmmmuuuaaaahhhhhh<br><br>
+            Seni çok seviyorummmmm aşığımmmm çanaaaaaaaaa<br><br>
+            <span style="color: #38bdf8; font-size: 10px;">- Kerem</span>
+        </p>
+        <button id="restart-win" type="button" class="retro-btn">Tekrar oynamak ister misinnnnnn yavrummmmm ?</button>
+    </div>
+
+    <!-- Kaybetme (Game Over) Ekranı -->
+    <div id="lose-screen" class="overlay-screen">
+        <div class="ending-heart-field" aria-hidden="true"></div>
+        <h1 class="ending-title">Oyun Bidddiiiii</h1>
+        <p class="romantic-text" style="color: #bfdbfe;">
+            Mavi kristallere çok çarptın bebişimmmmmmmm
+        </p>
+        <button id="restart-lose" type="button" class="retro-btn">TEKRAR OYNA</button>
+    </div>
+
+    <script>
+        // -----------------------------------------------------
+        // PİKSEL ART MAVİ KALP SVG
+        // -----------------------------------------------------
+        const pixelHeartSVG = `
+        <svg viewBox="0 0 13 12" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" class="pixel-art" style="filter: drop-shadow(0 0 6px #38bdf8);">
+            <!-- Dış Hatlar -->
+            <rect x="3" y="0" width="2" height="1" fill="#020617"/><rect x="8" y="0" width="2" height="1" fill="#020617"/>
+            <rect x="2" y="1" width="1" height="1" fill="#020617"/><rect x="5" y="1" width="3" height="1" fill="#020617"/><rect x="10" y="1" width="1" height="1" fill="#020617"/>
+            <rect x="1" y="2" width="1" height="2" fill="#020617"/><rect x="11" y="2" width="1" height="2" fill="#020617"/>
+            <rect x="0" y="4" width="1" height="3" fill="#020617"/><rect x="12" y="4" width="1" height="3" fill="#020617"/>
+            <rect x="1" y="7" width="1" height="1" fill="#020617"/><rect x="11" y="7" width="1" height="1" fill="#020617"/>
+            <rect x="2" y="8" width="1" height="1" fill="#020617"/><rect x="10" y="8" width="1" height="1" fill="#020617"/>
+            <rect x="3" y="9" width="1" height="1" fill="#020617"/><rect x="9" y="9" width="1" height="1" fill="#020617"/>
+            <rect x="4" y="10" width="1" height="1" fill="#020617"/><rect x="8" y="10" width="1" height="1" fill="#020617"/>
+            <rect x="5" y="11" width="3" height="1" fill="#020617"/>
+            <!-- İç Dolgu -->
+            <rect x="3" y="1" width="2" height="1" fill="#38bdf8"/><rect x="8" y="1" width="2" height="1" fill="#38bdf8"/>
+            <rect x="2" y="2" width="4" height="1" fill="#38bdf8"/><rect x="7" y="2" width="4" height="1" fill="#38bdf8"/>
+            <rect x="2" y="3" width="9" height="1" fill="#38bdf8"/><rect x="1" y="4" width="11" height="3" fill="#0284c7"/>
+            <rect x="2" y="7" width="9" height="1" fill="#0284c7"/><rect x="3" y="8" width="7" height="1" fill="#0284c7"/>
+            <rect x="4" y="9" width="5" height="1" fill="#1e3a8a"/><rect x="5" y="10" width="3" height="1" fill="#1e3a8a"/>
+            <!-- Parlama -->
+            <rect x="3" y="2" width="1" height="1" fill="#e0f2fe"/><rect x="2" y="4" width="1" height="2" fill="#e0f2fe"/>
+        </svg>`;
+
+        const pixelBrokenHeartSVG = pixelHeartSVG.replace(
+            '</svg>',
+            '<path d="M6 2 5 4 7 5 5 7 7 8 6 10" fill="none" stroke="#020617" stroke-width="2" stroke-linecap="square"/>' +
+            '<path d="M6 2 5 4 7 5 5 7 7 8 6 10" fill="none" stroke="#ffffff" stroke-width="1" stroke-linecap="square"/></svg>'
+        );
+
+        // -----------------------------------------------------
+        // PİKSEL ART TURUNCU KRİSTAL SVG (YENİ ENGEL)
+        // -----------------------------------------------------
+        const pixelCrystalSVG = `
+        <svg viewBox="0 0 10 12" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" class="pixel-art">
+            <!-- Dış Çizgiler -->
+            <rect x="4" y="0" width="2" height="1" fill="#020617"/><rect x="3" y="1" width="1" height="1" fill="#020617"/><rect x="6" y="1" width="1" height="1" fill="#020617"/>
+            <rect x="2" y="2" width="1" height="2" fill="#020617"/><rect x="7" y="2" width="1" height="2" fill="#020617"/>
+            <rect x="1" y="4" width="1" height="3" fill="#020617"/><rect x="8" y="4" width="1" height="3" fill="#020617"/>
+            <rect x="2" y="7" width="1" height="2" fill="#020617"/><rect x="7" y="7" width="1" height="2" fill="#020617"/>
+            <rect x="3" y="9" width="1" height="2" fill="#020617"/><rect x="6" y="9" width="1" height="2" fill="#020617"/>
+            <rect x="4" y="11" width="2" height="1" fill="#020617"/>
+            <!-- Renk Dolgusu -->
+            <rect x="4" y="1" width="2" height="1" fill="#fff7ed"/><rect x="3" y="2" width="4" height="2" fill="#fed7aa"/>
+            <rect x="2" y="4" width="6" height="3" fill="#fb923c"/><rect x="3" y="7" width="4" height="2" fill="#ea580c"/>
+            <rect x="4" y="9" width="2" height="2" fill="#9a3412"/>
+            <!-- Işık / Parlama -->
+            <rect x="3" y="2" width="1" height="2" fill="#e0f2fe"/><rect x="2" y="4" width="1" height="2" fill="#e0f2fe"/>
+        </svg>`;
+
+        document.getElementById('score-icon').innerHTML = pixelHeartSVG;
+        document.getElementById('win-heart-icon').innerHTML = pixelHeartSVG;
+
+        const gameContainer = document.getElementById('game-container');
+        const player = document.getElementById('player');
+        const playerSprite = document.getElementById('player-sprite');
+        const scoreDisplay = document.getElementById('score');
+        const flashOverlay = document.getElementById('flash-overlay');
+        const winScreen = document.getElementById('win-screen');
+        const loseScreen = document.getElementById('lose-screen');
+        const tutorial = document.getElementById('tutorial');
+        const spawnTimer = { id: null };
+        const screenTimer = { id: null };
+        const invincibilityTimer = { id: null };
+        let animationFrameId = null;
+
+        document.querySelectorAll('.ending-heart-field').forEach(field => {
+            for (let i = 0; i < 8; i++) {
+                const heart = document.createElement('div');
+                const duration = 16 + Math.random() * 12;
+                heart.className = 'ending-heart pixel-art';
+                const isBrokenHeart = field.closest('#lose-screen') !== null;
+                heart.innerHTML = isBrokenHeart ? pixelBrokenHeartSVG : pixelHeartSVG;
+                heart.style.setProperty('--heart-size', `${24 + Math.random() * 30}px`);
+                heart.style.setProperty('--heart-left', `${Math.random() * 100}%`);
+                heart.style.setProperty('--heart-drift', `${Math.random() * 80 - 40}px`);
+                heart.style.setProperty('--fall-duration', `${duration}s`);
+                heart.style.setProperty('--fall-delay', `${-Math.random() * duration}s`);
+                field.appendChild(heart);
+            }
+        });
+
+        // JS Fizik Motoru
+        let yPos = 0;           
+        let yVelocity = 0;      
+        const GRAVITY_UP = 0.85;   
+        const GRAVITY_DOWN = 0.40; 
+        const JUMP_FORCE = -14.5; 
+        let isJumping = false;
+        let previousFrameTime = null;
+
+        function setRunning(isRunning) {
+            player.classList.toggle('running', isRunning);
+            playerSprite.classList.toggle('running', isRunning);
+        }
+
+        // Oyun & Can Değişkenleri
+        let score = 0;
+        const targetScore = 4;
+        let lives = 4;
+        let isInvincible = false;
+        let gameActive = false;
+        let entities = []; 
+
+        function clearGameTimers() {
+            if (spawnTimer.id !== null) {
+                clearTimeout(spawnTimer.id);
+                spawnTimer.id = null;
+            }
+            if (screenTimer.id !== null) {
+                clearTimeout(screenTimer.id);
+                screenTimer.id = null;
+            }
+            if (invincibilityTimer.id !== null) {
+                clearTimeout(invincibilityTimer.id);
+                invincibilityTimer.id = null;
+            }
+            if (animationFrameId !== null) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+        }
+
+        function stopGame() {
+            gameActive = false;
+            clearGameTimers();
+            gameContainer.classList.remove('started');
+            setRunning(false);
+            gameContainer.querySelectorAll('.entity').forEach(el => el.style.animationPlayState = 'paused');
+            document.querySelector('.ground-layer').style.animationPlayState = 'paused';
+            document.querySelector('.stars-layer').style.animationPlayState = 'paused';
+        }
+
+        function jump() {
+            if (!gameActive) return;
+            if (tutorial.style.display !== 'none') tutorial.style.display = 'none';
+
+            if (!isJumping) {
+                isJumping = true;
+                setRunning(false);
+                yVelocity = JUMP_FORCE;
+            }
+        }
+
+        function spawnEntity() {
+            if (!gameActive) return;
+
+            const isHeart = Math.random() < 0.40; // %40 ihtimal kalp, %60 kristal
+            
+            const el = document.createElement('div');
+            el.classList.add('entity');
+            
+            if (isHeart) {
+                el.classList.add('heart');
+                el.innerHTML = pixelHeartSVG;
+                el.dataset.type = 'heart';
+            } else {
+                el.classList.add('obstacle');
+                el.innerHTML = pixelCrystalSVG; // Yeni Piksel Kristal!
+                el.dataset.type = 'obstacle';
+            }
+
+            gameContainer.appendChild(el);
+            
+            const entityObj = { element: el, type: isHeart ? 'heart' : 'obstacle', collected: false };
+            entities.push(entityObj);
+
+            el.addEventListener('animationend', () => {
+                el.remove();
+                entities = entities.filter(e => e !== entityObj);
+            });
+
+            let nextSpawn = Math.random() * 1000 + 1000;
+            spawnTimer.id = setTimeout(spawnEntity, nextSpawn);
+        }
+
+        // Adil Hitbox Hesaplaması
+        function checkCollision(playerRect, entityRect, type) {
+            // Kristallere çarpma toleransı artırıldı (daha insaflı)
+            const paddingX = type === 'heart' ? -20 : 12; 
+            const paddingY = type === 'heart' ? -20 : 12;
+
+            return !(
+                playerRect.right - paddingX < entityRect.left + paddingX || 
+                playerRect.left + paddingX > entityRect.right - paddingX || 
+                playerRect.bottom - paddingY < entityRect.top + paddingY || 
+                playerRect.top + paddingY > entityRect.bottom - paddingY
+            );
+        }
+
+        function gameLoop(timestamp) {
+            if (!gameActive) return;
+
+            const frameScale = previousFrameTime === null
+                ? 1
+                : Math.min((timestamp - previousFrameTime) / (1000 / 60), 2);
+            previousFrameTime = timestamp;
+
+            // FİZİK HESAPLAMALARI
+            if (isJumping) {
+                let currentGravity = (yVelocity < 0) ? GRAVITY_UP : GRAVITY_DOWN;
+                yVelocity += currentGravity * frameScale;
+                yPos += yVelocity * frameScale;
+
+                if (yVelocity < -2) {
+                    playerSprite.classList.add('jump-up');
+                    playerSprite.classList.remove('jump-down');
+                } else if (yVelocity > 2) {
+                    playerSprite.classList.add('jump-down');
+                    playerSprite.classList.remove('jump-up');
+                }
+
+                if (yPos >= 0) {
+                    yPos = 0;
+                    yVelocity = 0;
+                    isJumping = false;
+                    playerSprite.classList.remove('jump-up', 'jump-down'); 
+                    setRunning(true);
+                }
+            }
+            player.style.transform = `translateY(${yPos}px)`;
+
+            // ÇARPIŞMA KONTROLÜ
+            const playerRect = player.getBoundingClientRect();
+
+            entities.forEach(entData => {
+                if (entData.collected) return;
+                const entRect = entData.element.getBoundingClientRect();
+
+                if (checkCollision(playerRect, entRect, entData.type)) {
+                    
+                    // Kalp Toplama
+                    if (entData.type === 'heart') {
+                        entData.collected = true;
+                        score++;
+                        scoreDisplay.innerText = score;
+                        
+                        entData.element.style.transition = 'all 0.2s ease-out';
+                        entData.element.style.transform = 'scale(2) translateY(-20px)';
+                        entData.element.style.opacity = '0'; 
+                        
+                        if (score >= targetScore) winGame();
+                    } 
+                    // Kristale Çarpma (Hasar)
+                    else if (entData.type === 'obstacle' && !isInvincible) {
+                        entData.collected = true;
+                        takeDamage();
+                    }
+                }
+            });
+
+            if (gameActive) animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        // Hasar Alma Sistemi
+        function takeDamage() {
+            lives--;
+            triggerFlash();
+            
+            // HP UI Güncelleme
+            const hpBox = document.getElementById(`hp-${lives + 1}`);
+            if(hpBox) hpBox.classList.add('lost');
+
+            if (lives <= 0) {
+                loseGame();
+            } else {
+                // I-Frames (Ölümsüzlük süresi)
+                isInvincible = true;
+                playerSprite.classList.add('invincible');
+                invincibilityTimer.id = setTimeout(() => {
+                    isInvincible = false;
+                    invincibilityTimer.id = null;
+                    playerSprite.classList.remove('invincible');
+                }, 1200);
+            }
+        }
+
+        function triggerFlash() {
+            flashOverlay.classList.remove('flash-red');
+            void flashOverlay.offsetWidth; 
+            flashOverlay.classList.add('flash-red');
+        }
+
+        function winGame() {
+            if (!gameActive) return;
+            stopGame();
+            gameContainer.style.opacity = '0';
+            gameContainer.style.transition = 'opacity 1.5s ease-in-out';
+            screenTimer.id = setTimeout(() => {
+                winScreen.classList.add('active');
+                screenTimer.id = null;
+            }, 1000);
+        }
+
+        function loseGame() {
+            if (!gameActive) return;
+            stopGame();
+            
+            screenTimer.id = setTimeout(() => {
+                loseScreen.classList.add('active');
+                screenTimer.id = null;
+            }, 500);
+        }
+
+        function initGame() {
+            clearGameTimers();
+            previousFrameTime = null;
+            gameContainer.querySelectorAll('.entity').forEach(el => el.remove());
+            entities = [];
+            score = 0;
+            lives = 4;
+            yPos = 0;
+            yVelocity = 0;
+            isJumping = false;
+            isInvincible = false;
+            scoreDisplay.innerText = score;
+            document.querySelectorAll('.hp-box').forEach(box => box.classList.remove('lost'));
+            player.style.transform = 'translateY(0px)';
+            playerSprite.classList.remove('jump-up', 'jump-down', 'invincible');
+            setRunning(true);
+            tutorial.style.display = '';
+            flashOverlay.classList.remove('flash-red');
+            winScreen.classList.remove('active');
+            loseScreen.classList.remove('active');
+            gameContainer.style.opacity = '';
+            gameContainer.style.transition = '';
+            document.querySelector('.ground-layer').style.animationPlayState = 'running';
+            document.querySelector('.stars-layer').style.animationPlayState = 'running';
+            gameContainer.classList.add('started');
+            gameActive = true;
+            spawnTimer.id = setTimeout(spawnEntity, 1000);
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        document.getElementById('restart-win').addEventListener('click', initGame);
+        document.getElementById('restart-lose').addEventListener('click', initGame);
+
+        // KONTROLLER
+        gameContainer.addEventListener('pointerdown', (event) => {
+            if (event.button !== 0) return;
+            if (!gameActive) {
+                if (screenTimer.id !== null || winScreen.classList.contains('active') || loseScreen.classList.contains('active')) return;
+                initGame();
+            }
+            jump();
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if ((e.code === 'Space' || e.code === 'ArrowUp') && !e.repeat && !(e.target instanceof HTMLElement && e.target.closest('button'))) {
+                e.preventDefault();
+                if (!gameActive) {
+                    if (screenTimer.id !== null || winScreen.classList.contains('active') || loseScreen.classList.contains('active')) return;
+                    initGame();
+                }
+                jump();
+            }
+        });
+
+    </script>
+</body>
+</html>
