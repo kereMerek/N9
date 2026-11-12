@@ -301,6 +301,25 @@
             pointer-events: auto;
         }
 
+        #intro-screen {
+            justify-content: center;
+        }
+
+        #intro-letter {
+            width: min(100%, 900px);
+            margin: 0 0 12px;
+            color: #bae6fd;
+            font-size: clamp(10px, 1.35vw, 14px);
+            line-height: 2;
+            text-shadow: 2px 2px 0 #020617;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        #intro-screen .retro-btn {
+            margin-top: 0;
+        }
+
         .ending-heart-field {
             position: absolute;
             inset: 0;
@@ -514,6 +533,11 @@
         </div>
     </div>
 
+    <div id="intro-screen" class="overlay-screen active" role="dialog" aria-modal="true" aria-label="Kerem'den bir mektup">
+        <p id="intro-letter">Daha geçen ay falan yapmıştım sana bu siteyi hatta tekrar kalplerimizin yan yana olduğu zamanlar. Hep mektup tarzı siteler yapıyodum bu siteyi yaparken de biraz farklı bir şeyler yapmak istemiştim sana böyle küçük bi oyun yapmak istemiştim. Hala ara ara açıp baktığını biliyorum görüyorum. Bakarken belki de çok canın yanıyo belki geri gelmek isteyip de gelemiyosun ya da benim bir şeyler yapmamı bekliyosun bilmiyorum. Çok özlüyorum seni beni bizi çok canımı yakıyo bu ayrılık,  günden güne daha da aramızda ki mesafelerin artması... Hep demiştik ya bizim için en zor sene bu sene olucak ama biz bu günlerin de üstesinden yine birlikte gelicez demiştik ben hala tüm kalbimle inanıyorum her şey yine iyi olucak biz yine başarıcaz birlikte yapıcaz. Belki yaptığın şeylerden dolayı senden soğuyacağımı falan düşünme altın çamura düştü diye hiç değerini kaybeder mi...<br><br>                                     -Seni çok seven Kerem</p>
+        <button id="continue-button" type="button" class="retro-btn">Devam etmek için tıkla</button>
+    </div>
+
     <!-- Kazanma Ekranı -->
     <div id="win-screen" class="overlay-screen">
         <div class="ending-heart-field" aria-hidden="true"></div>
@@ -597,6 +621,7 @@
         const playerSprite = document.getElementById('player-sprite');
         const scoreDisplay = document.getElementById('score');
         const flashOverlay = document.getElementById('flash-overlay');
+        const introScreen = document.getElementById('intro-screen');
         const winScreen = document.getElementById('win-screen');
         const loseScreen = document.getElementById('lose-screen');
         const tutorial = document.getElementById('tutorial');
@@ -875,6 +900,10 @@
 
         document.getElementById('restart-win').addEventListener('click', initGame);
         document.getElementById('restart-lose').addEventListener('click', initGame);
+        document.getElementById('continue-button').addEventListener('click', () => {
+            introScreen.classList.remove('active');
+            initGame();
+        });
 
         // KONTROLLER
         gameContainer.addEventListener('pointerdown', (event) => {
@@ -887,6 +916,7 @@
         });
 
         window.addEventListener('keydown', (e) => {
+            if (introScreen.classList.contains('active')) return;
             if ((e.code === 'Space' || e.code === 'ArrowUp') && !e.repeat && !(e.target instanceof HTMLElement && e.target.closest('button'))) {
                 e.preventDefault();
                 if (!gameActive) {
